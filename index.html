@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>Ingeniería Web</title>
+
+		<meta name="description" content="Introducción al curso de Ingeniería Web de la UCA">
+		<meta name="author" content="Juan Manuel Dodero">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="css/reveal.min.css">
+		<link rel="stylesheet" href="css/theme/default.css" id="theme">
+
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', use the PDF print sheet -->
+		<script>
+			document.write( '<link rel="stylesheet" href="css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+       
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+
+				<section>
+
+					<section>
+						<h1>Ingeniería Web</h1>
+						<h2>Spring</h2>
+						<h3>Inyección de dependencias</h3>
+						<p>
+							<small>Created by <a href="https://twitter.com/jmdodero">Juan Manuel Dodero</a> <a href="https://twitter.com/jmdodero">@jmdodero</a>. 
+							<br/>
+							Adapted by <a href="https://twitter.com/iruizrube">Iván Ruiz</a> <a href="https://twitter.com/iruizrube">@iruizrube</a></small>
+								
+						</p>
+						<p>
+						</p>
+					</section>
+
+				</section>
+
+			<section>
+					<img width="780" src="./img/atm.png" alt="Example image">
+			</section>
+				
+			<section>
+
+			
+				<section>
+					<h2>Versión 0</h2>
+					<h3>Acoplamiento no deseado</h3>
+					<p>
+						La implementación del cajero automático está ligada al transporte
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+						
+public interface AutomatedTellerMachine {
+    void deposit(BigDecimal bd);
+    void withdraw(BigDecimal bd);
+}
+
+public class AutomatedTellerMachineImpl implements AutomatedTellerMachine{
+    
+    private ATMTransport transport;
+
+    public AutomatedTellerMachineImpl(){
+        this.transport=new SimulationAtmTransport();
+    }
+    
+    public void deposit(BigDecimal bd) {
+       ...
+       transport.communicateWithBank(...);
+    }
+
+    public void withdraw(BigDecimal bd) {
+       ...
+       transport.communicateWithBank(...);
+    }
+
+}
+
+public interface ATMTransport {
+    void communicateWithBank(byte [] datapacket);
+}
+
+public class SoapAtmTransport implements ATMTransport {
+    public void communicateWithBank(byte[] datapacket) {
+       ...
+    }
+}
+
+public class StandardAtmTransport implements ATMTransport {
+    public void communicateWithBank(byte[] datapacket) {
+       ...
+    }
+}
+
+public class SimulationAtmTransport implements ATMTransport {
+    public void communicateWithBank(byte[] datapacket) {
+       ...
+    }
+}
+					</code></pre>
+			
+				</section>
+			</section>
+				
+				
+			<section>
+
+				<section>
+					<h2>Versión 1</h2>
+					<h3>INYECCIÓN DE DEPENDENCIAS (SIN SPRING)</h3>
+					<p>
+						La implementación del cajero no es consciente del método de transporte
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+						
+public interface AutomatedTellerMachine {
+    void deposit(BigDecimal bd);
+    void withdraw(BigDecimal bd);
+}
+
+public class AutomatedTellerMachineImpl implements AutomatedTellerMachine{
+    
+    private ATMTransport transport;
+    
+    public void deposit(BigDecimal bd) {
+       ...
+       transport.communicateWithBank(...);
+    }
+
+    public void withdraw(BigDecimal bd) {
+       ...
+       transport.communicateWithBank(...);
+    }
+
+    public void setTransport(ATMTransport transport) {
+       this.transport = transport;
+    }
+}
+
+public interface ATMTransport {
+    void communicateWithBank(byte [] datapacket);
+}
+
+public class SoapAtmTransport implements ATMTransport {
+    public void communicateWithBank(byte[] datapacket) {
+       ...
+    }
+}
+
+public class StandardAtmTransport implements ATMTransport {
+    public void communicateWithBank(byte[] datapacket) {
+       ...
+    }
+}
+
+public class SimulationAtmTransport implements ATMTransport {
+    public void communicateWithBank(byte[] datapacket) {
+       ...
+    }
+}
+					</code></pre>
+				</section>
+
+				<section>
+					<h3>Versión 1</h3>
+					<p>
+						El cliente (interfaz de usuario) debe inyectar dependencias
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+public class AtmMain {       
+    public void main (String[] args) {
+        AutomatedTellerMachine atm = new AutomatedTellerMachineImpl();
+        ATMTransport transport = new SoapAtmTransport();
+        /* Inject the transport. */           
+        ((AutomatedTellerMachineImpl)atm).setTransport(transport);
+        atm.withdraw(new BigDecimal("10.00"));
+        atm.deposit(new BigDecimal("100.00"));
+    }
+}
+// Este codigo de aqui abajo es para cambiar el protocolo de transporte de datos
+ATMTransport transport = new SimulationAtmTransport();
+((AutomatedTellerMachineImpl)atm).setTransport(transport);
+
+					</code></pre>
+				</section>
+
+			</section>
+
+			<section>
+				<h2>Spring Application context</h2>
+				<p>proporciona...
+				</p>
+				<ul>
+					<li>bean factory methods</li>
+					<li>carga de recursos en ficheros</li>
+					<li>resolución de mensajes</li>
+					<li>soporte para internacionalización</li>
+				</ul>
+			</section>
+
+			<section>
+
+				<section>
+                    <h2>Versión 2</h2>
+					<h3>INYECCIÓN DE DEPENDENCIAS MEDIANTE SETTERS (CON SPRING)</h3>
+					<p>
+						El cliente no necesita inyectar ninguna dependencia
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+public class AtmMain {       
+    public static void main (String[] args) {
+        ApplicationContext appContext = new ClassPathXmlApplicationContext("classpath:./spring/applicationContext.xml");
+        AutomatedTellerMachine atm = (AutomatedTellerMachine) appContext.getBean("atm");                
+        atm.withdraw(new BigDecimal("10.00"));                
+        atm.deposit(new BigDecimal("100.00"));
+    }
+}
+					</code></pre>
+				</section>
+
+				<section>
+					<h3>Versión 2</h3>
+					<p>
+						Las dependencias son declaradas en el ApplicationContext XML
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd">
+
+    <bean id="atmTransport" class="com...SoapAtmTransport" /></bean>
+
+    <bean id="atm" class="com...AutomatedTellerMachineImpl">
+         <property name="transport" ref="atmTransport"></property>
+    </bean>
+
+</beans>						
+					</code></pre>
+				</section>
+
+				<section>
+					<h3>Versión 2</h3>
+                    <p>
+						Lo vemos en la siguiente figura....
+					</p>
+
+					<img width="780" src="./img/spring-di-01.png" alt="Injecting dependency using JavaBean property">
+				</section>
+
+			</section>
+
+			<section>
+
+				<section>
+                    <h2>Versión 3</h2>
+					<h3>INYECCIÓN DE DEPENDENCIAS MEDIANTE CONSTRUCTORES (CON SPRING)</h3>
+
+      				<p>
+						Modificamos la clase del ATM con un constructor con parámetro
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+public class AutomatedTellerMachineImpl implements AutomatedTellerMachine{    
+
+    private ATMTransport transport;
+    
+    public AutomatedTellerMachineImpl (ATMTransport transport) {
+        this.transport = transport;
+    }
+
+}
+					</code></pre>
+				</section>
+
+			
+				<section>
+					<h3>Versión 3</h3>
+					<p>
+						Declaramos la dependencia de constructor en el ApplicationContext XML
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+<bean id="standardTransport" class="com...StandardAtmTransport"/> 
+    <bean id="atm" class="com...AutomatedTellerMachineImpl">
+       <constructor-arg ref="standardTransport" />
+      <!-- <constructor-arg index="0" ref="standardTransport" />  -->
+    </bean>
+</bean>    
+					</code></pre>
+				</section>
+
+				<section>
+					<h3>Versión 3</h3>
+                    <p>
+						Lo vemos en la siguiente figura....
+					</p>
+
+					<img width="780" src="./img/spring-di-02.png" alt="Using constructor to inject dependency">
+				</section>
+
+			</section>
+
+
+			<section>
+
+				<section>
+                    <h2>Versión 4</h2>
+					<h3>INYECCIÓN DE DEPENDENCIAS AUTOMÁTICA MEDIANTE CONSTRUCTORES (CON SPRING)</h3>
+
+					<p>
+						Con <em>context:annotation-config</em> le decimos que active las anotaciones en los Beans y suprimos la inyección explicita en el XML
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+<beans 
+    xmlns="http://www.springframework.org/schema/beans" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xsi:schemaLocation="...">
+
+    <context:annotation-config></context:annotation-config>
+
+    <bean id="standardTransport" class="com...StandardATMTransport"></bean>
+   
+    <bean id="atm" class="com...AutomatedTellerMachineImpl"></bean>
+</beans>
+					</code></pre>
+				</section>
+
+				<!--
+
+@Required This annotation simply indicates that the affected bean property must be populated at configuration time, through an explicit property value in a bean definition or through autowiring. The container throws an exception if the affected bean property has not been populated
+
+@Autowired’s required attribute is recommended over the `@Required annotation. The required attribute indicates that the property is not required for autowiring purposes, the property is ignored if it cannot be autowired. @Required, on the other hand, is stronger in that it enforces the property that was set by any means supported by the container. If no value is injected, a corresponding exception is raised.
+-->
+
+				<section>
+					<h3>Versión 4</h3>
+					<p>
+						Pedimos a Spring que inyecte la dependencia con @Autowired
+
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+import org.springframework.beans.factory.annotation.Required;
+
+public class AutomatedTellerMachineImpl implements AutomatedTellerMachine{
+    
+    private ATMTransport transport;
+
+    @Autowired(required=true)
+    public void setTransport(ATMTransport transport) {
+        this.transport = transport;
+    }
+}
+</beans>
+					</code></pre>
+				</section>
+
+					<section>
+					<h3>Versión 4</h3>
+					<p>
+						¿Y si añadimos más medios de transporte?...
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+<beans 
+    xmlns="http://www.springframework.org/schema/beans" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xsi:schemaLocation="...">
+
+    <context:annotation-config></context:annotation-config>
+
+    <bean id="soapTransport" class="com...SoapATMTransport"></bean>	
+    <bean id="standardTransport" class="com...StandardATMTransport"></bean>
+    <bean id="simulationTransport" class="com...SimulationATMTransport"></bean> 
+
+    <bean id="atm" class="com...AutomatedTellerMachineImpl"></bean>
+</beans>
+					</code></pre>
+				</section>
+
+		
+			<section>
+					<h3>Versión 4</h3>
+					<p>
+						Pedimos a Spring que resuelva la ambigüedad de tipo con @Qualifier. 
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+import org.springframework.beans.factory.annotation.Required;
+
+public class AutomatedTellerMachineImpl implements AutomatedTellerMachine{
+    
+    private ATMTransport transport;
+
+    @Autowired(required=true)
+    @Qualifier("soapTransport")
+    public void setTransport(ATMTransport transport) {
+        this.transport = transport;
+    }
+}
+</beans>
+					</code></pre>
+	<p>¡¡Volvemos al principio: el cajero está ligado al modo de transporte ATM!!</p>
+
+        </section>
+	
+	
+<!--	
+		
+				<section>
+					<h3>Versión 4</h3>
+					<img width="780" src="./img/spring-di-03.png" alt="Injecting dependency using bean name as qualifier">
+				</section>
+-->
+<!--
+				<section>
+					<h3>Versión 4</h3>
+					<p>
+						XML DI tiene precedencia sobre las anotaciones
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+<beans 
+    xmlns="http://www.springframework.org/schema/beans" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xsi:schemaLocation="...">
+
+    <context:annotation-config></context:annotation-config>
+
+    <bean id="soapTransport" class="com...SoapAtmTransport"></bean>
+    <bean id="standardTransport" class="com...StandardAtmTransport"></bean>
+    <bean id="simulationTransport" class="com...SimulationAtmTransport"></bean>
+
+	<bean id="atm" class="com...AutomatedTellerMachineImpl">
+        <property name="transport" ref="simulationTransport"></property>
+	</bean>
+
+</beans>
+					</code></pre>
+				</section>
+
+-->
+
+			</section>
+
+		<section>
+
+				<section>
+                    <h2>Versión 5</h2>
+					<h3>INYECCIÓN DE DEPENDENCIAS MEDIANTE CONSTRUCTORES (CON SPRING CONFIGURADO SIN XML)</h3>
+                    <p>
+						En lugar de XML definimos los beans directamente en una clase Java con <em>@Configuration</em>
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Bean;
+
+@Configuration
+public class AtmConfigurationV5 {
+
+    @Bean
+    public AutomatedTellerMachine automatedTellerMachine(){
+        return new AutomatedTellerMachineImpl(soapTransport());
+    }
+	
+    @Bean
+    public ATMTransport soapTransport(){
+        return new SoapATMTransport();
+    }
+	
+    @Bean
+    public ATMTransport standardTransport(){
+        return new StandardATMTransport();
+    }
+	
+    @Bean
+    public ATMTransport simulationTransport(){
+        return new SimulationATMTransport();
+    }
+	
+}
+
+
+					</code></pre>
+				</section>
+		
+			
+	<section>
+					<h3>Versión 5</h3>
+					<p>
+						Cargamos el contexto desde la clase de configuración
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+public class AtmMain {       
+    public static void main (String[] args) {
+
+        ApplicationContext context = new AnnotationConfigApplicationContext(AtmConfigurationV5.class);
+        AutomatedTellerMachine atm = context.getBean(AutomatedTellerMachine.class);
+        atm.withdraw(new BigDecimal("10.00"));                
+        atm.deposit(new BigDecimal("100.00"));
+    }
+}
+					</code></pre>
+				</section>			
+			
+	</section>
+
+	
+	
+	<section>
+		<section>
+                    <h2>Versión 6</h2>
+					<h3>INYECCIÓN DE DEPENDENCIAS MEDIANTE CONSTRUCTORES (CON SPRING CONFIGURADO SIN XML Y BEANS DETECTADOS AUTOMÁTICAMENTE)</h3>
+                    <p>
+						Con <em>@ComponentScan</em> le decimos a Spring que busque los beans por nosotros...
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.beans.factory.annotation.Configurable;
+
+
+@Configurable
+@ComponentScan(basePackages="com...v6")
+
+public class AtmMainV6 {       
+    public static void main (String[] args) {
+
+        ApplicationContext context = new AnnotationConfigApplicationContext(AtmConfigurationV6.class);
+        AutomatedTellerMachine atm = context.getBean(AutomatedTellerMachine.class);
+        atm.withdraw(new BigDecimal("10.00"));                
+        atm.deposit(new BigDecimal("100.00"));
+    }
+}
+					</code></pre>
+				</section>			
+			
+		
+			<section>
+					<h3>Versión 6</h3>
+					<p>
+						Anotamos las clases con el estereotipo @Component para que se autodetecten y @Qualifier para resolver ambigüedades
+					</p>
+					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
+import es.uca.iw.atm.ATMTransport;
+
+@Component
+@Qualifier("simulationTransport")
+public class SimulationATMTransportV6 implements ATMTransport {
+...
+}
+
+@Component
+@Qualifier("soapTransport")
+public class SoapATMTransportV6 implements ATMTransport {
+...
+}
+
+
+@Component
+@Qualifier("standardTransport")
+public class StandardATMTransportV6 implements ATMTransport {
+...
+}
+
+@Component
+public class AutomatedTellerMachineImplV6 implements AutomatedTellerMachine {
+...
+}
+
+</code></pre>
+				</section>			
+			
+		
+		
+	</section>
+
+			<section>
+				<p>
+					<a href="https://medium.com/on-coding/db854689243">Gracias</a>				
+				</p>
+			</section>
+
+			</div>
+
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.min.js"></script>
+
+		<script>
+
+			// Full list of configuration options available here:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+
+				theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+				transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+				// Parallax scrolling
+				// parallaxBackgroundImage: 'https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg',
+				// parallaxBackgroundSize: '2100px 900px',
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+					{ src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } },
+					{ src: 'lib/js/meny.min.js', condition: function() { return !!document.body.classList; } }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
